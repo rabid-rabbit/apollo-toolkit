@@ -6,15 +6,13 @@ version := "1.0.0-SNAPSHOT"
 
 scalaVersion := "2.11.6"
 
+val sparkVersion = "1.4.1"
+
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.0",
-  "org.apache.spark" %% "spark-core" % "1.4.+",
-  "org.apache.spark" %% "spark-sql" % "1.4.+",
+  "org.apache.spark" %% "spark-core" % sparkVersion,
+  "org.apache.spark" %% "spark-sql" % sparkVersion,
   "com.datastax.spark" %% "spark-cassandra-connector" % "1.4.+",
-  "io.spray" %% "spray-http" % "1.3.+",
-  "io.spray" %% "spray-can" % "1.3.+",
-  "io.spray" %% "spray-client" % "1.3.+",
-  "io.spray" %% "spray-json" % "1.3.+",
   "mysql"         % "mysql-connector-java" % "5.1.24",
   "joda-time" % "joda-time" % "2.8.1",
   "com.github.nscala-time" %% "nscala-time" % "2.0.0",

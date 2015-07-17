@@ -3,9 +3,11 @@ package com.sungevity.analytics.api
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, Actor}
+import com.sungevity.analytics.protocol.{ApplicationRegistryEntryConfirmed, ApplicationRegistryEntry}
 import com.typesafe.config.Config
 
 import akka.pattern.ask
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 
@@ -42,9 +44,15 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
 
   import context.dispatcher
 
-  val applicationContext: T = initializeContext
+  private val log = LoggerFactory.getLogger(getClass.getName)
 
-  def run(): R
+  protected val applicationContext: T = initializeContext
+
+  registerApplication
+
+  log.info(s"Application ${applicationContext.applicationName} has been successfully registered in Apollo.")
+
+  def run(applicationContext: T): R
 
   protected def initializeApplicationContext(config: Config): T
 
@@ -52,7 +60,11 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
 
     case "run" => {
 
-      marshaller.produce(sender,  run)
+      try {
+        marshaller.produce(sender,  run(applicationContext))
+      } catch {
+        case t: Throwable => log.error("Application failed.", t)
+      }
 
     }
 
@@ -62,18 +74,39 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
 
     implicit val timeout: Timeout = 10 seconds
 
-    val router = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/configuration")
+    val router = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/router/configuration")
 
     try{
       Await.result(
         router ? "get-configuration" map {
           case c: Config => {
-            initializeApplicationContext(appConfiguration.withFallback(c))
+            val effectiveConfig = appConfiguration.withFallback(c)
+            initializeApplicationContext(effectiveConfig)
           }
         }, timeout.duration
       )
     } catch {
       case e: TimeoutException => initializeContext
+    }
+
+  }
+
+  private def registerApplication: Unit = {
+
+    implicit val timeout: Timeout = 10 seconds
+
+    val port = appConfiguration.getInt("akka.remote.netty.tcp.port")
+
+    val lifecycle = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/router/lifecycle")
+
+    try{
+      Await.result(
+        lifecycle ? ApplicationRegistryEntry(applicationContext.applicationName, s"akka.tcp://${applicationContext.applicationName}@127.0.0.1:${port}/user/${applicationContext.applicationName.toLowerCase}", 1 day) map {
+          case ApplicationRegistryEntryConfirmed => // do nothing
+        }, timeout.duration
+      )
+    } catch {
+      case e: TimeoutException => registerApplication
     }
 
   }
