@@ -2,8 +2,8 @@ package com.sungevity.analytics.api
 
 import java.util.concurrent.TimeoutException
 
-import akka.actor.{ActorRef, Actor}
-import com.sungevity.analytics.protocol.{ApplicationRegistryEntryConfirmed, ApplicationRegistryEntry}
+import akka.actor._
+import com.sungevity.analytics.protocol.{ApplicationResult, StartApplication}
 import com.typesafe.config.Config
 
 import akka.pattern.ask
@@ -15,32 +15,9 @@ import scala.concurrent.duration._
 
 import akka.util.Timeout
 
-abstract class ResultMarshaller[T] {
+import scala.util.Try
 
-  def produce(client: ActorRef, result: T): Unit
-
-}
-
-object SparkApplication {
-
-  class StringIteratorMarshaller extends ResultMarshaller[Iterator[String]] {
-
-    override def produce(client: ActorRef, result: Iterator[String]) = {
-
-      result.flatMap(_.getBytes("UTF-8")).sliding(1024, 1024).foreach {
-        chunk =>
-          client ! chunk.toArray
-      }
-      client ! "done"
-    }
-
-  }
-
-  implicit val stringIteratorMarshaller = new StringIteratorMarshaller
-
-}
-
-abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfiguration: Config)(implicit marshaller: ResultMarshaller[R]) extends Actor {
+abstract class SparkApplication[T <: SparkApplicationContext](val appConfiguration: Config) extends Actor {
 
   import context.dispatcher
 
@@ -48,26 +25,26 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
 
   protected val applicationContext: T = initializeContext
 
-  registerApplication
-
-  log.info(s"Application ${applicationContext.applicationName} has been successfully registered in Apollo.")
-
-  def run(applicationContext: T): R
-
   protected def initializeApplicationContext(config: Config): T
+
+  protected def run(applicationContext: T): Int
 
   override def receive = {
 
-    case "run" => {
-
+    case StartApplication => {
+      log.debug(s"Starting [${applicationContext.applicationName}]")
       try {
-        marshaller.produce(sender,  run(applicationContext))
+        sender ! ApplicationResult(run(applicationContext))
       } catch {
-        case t: Throwable => log.error("Application failed.", t)
+        case t: Throwable => log.error(s"failed to run [${applicationContext.applicationName}]", t)
       }
-
     }
 
+    case m => {
+
+      log.error(s"Unknown message [$m].")
+
+    }
   }
 
   private def initializeContext: T = {
@@ -76,12 +53,18 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
 
     val router = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/router/configuration")
 
-    try{
+    try {
       Await.result(
         router ? "get-configuration" map {
           case c: Config => {
             val effectiveConfig = appConfiguration.withFallback(c)
-            initializeApplicationContext(effectiveConfig)
+            try {
+              initializeApplicationContext(effectiveConfig)
+            } catch {
+              case t: Throwable => {
+                throw new Error(s"Could not start [${context.self.toString()}]", t)
+              }
+            }
           }
         }, timeout.duration
       )
@@ -90,27 +73,5 @@ abstract class SparkApplication[T <: SparkApplicationContext, R](val appConfigur
     }
 
   }
-
-  private def registerApplication: Unit = {
-
-    implicit val timeout: Timeout = 10 seconds
-
-    val port = appConfiguration.getInt("akka.remote.netty.tcp.port")
-
-    val lifecycle = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/router/lifecycle")
-
-    try{
-      Await.result(
-        lifecycle ? ApplicationRegistryEntry(applicationContext.applicationName, s"akka.tcp://${applicationContext.applicationName}@127.0.0.1:${port}/user/${applicationContext.applicationName.toLowerCase}", 1 day) map {
-          case ApplicationRegistryEntryConfirmed => // do nothing
-        }, timeout.duration
-      )
-    } catch {
-      case e: TimeoutException => registerApplication
-    }
-
-  }
-
-
 
 }

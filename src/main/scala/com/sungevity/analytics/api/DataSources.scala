@@ -26,4 +26,9 @@ class DataSources(config: Config, sparkContext: SparkContext) {
     "dbtable" -> s"(${Queries.productionData(start, end)}) as production_data",
     "driver" -> "com.mysql.jdbc.Driver"))
 
+  def estimatedPerformance = sqlContext.load("jdbc", Map(
+    "url" -> ConnectionStrings.current(config),
+    "dbtable" -> s"(${Queries.estimatedPerformance}) as estimated_performance",
+    "driver" -> "com.mysql.jdbc.Driver"))
+
 }

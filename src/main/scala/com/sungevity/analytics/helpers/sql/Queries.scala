@@ -150,6 +150,32 @@ object Queries {
       |		GROUP BY l.reading_date, l.customer_id
     """.stripMargin
 
+  def estimatedPerformance =
+    """
+      |SELECT
+      |	i.Account_Number__c as accountID
+      |	, s.Jan_kWh__c as jan
+      |	, s.Feb_kWh__c as feb
+      |	, s.Mar_kWh__c as mar
+      |	, s.Apr_kWh__c as apr
+      |	, s.May_kWh__c as may
+      |	, s.Jun_kWh__c as jun
+      |	, s.Jul_kWh__c as jul
+      |	, s.Aug_kWh__c as aug
+      |	, s.Sep_kWh__c as sep
+      |	, s.Oct_kWh__c as oct
+      |	, s.Nov_kWh__c as nov
+      |	, s.Dec_kWh__c as `dec`
+      |
+      |FROM
+      |	salesforce_prod.System__c AS s
+      |	LEFT JOIN salesforce_prod.iQuote__c AS i ON i.id = s.iQuote__c
+      |
+      |WHERE
+      |	s.ABS__c = 'TRUE'
+      |	AND s.Jan_kWh__c IS NOT NULL
+    """.stripMargin
+
 }
 
 
