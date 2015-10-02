@@ -1,6 +1,7 @@
 package com.sungevity.analytics.api
 
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 
 import akka.actor._
 import com.sungevity.analytics.protocol.{ApplicationResult, StartApplication}
@@ -15,15 +16,31 @@ import scala.concurrent.duration._
 
 import akka.util.Timeout
 
-import scala.util.Try
+trait SparkApplicationContextAware {
 
-abstract class SparkApplication[T <: SparkApplicationContext](val appConfiguration: Config) extends Actor {
+  protected val applicationContext: SparkApplicationContext
+
+}
+
+trait StackableApplication extends SparkApplicationContextAware {
+
+  def receive: PartialFunction[Any, Unit]
+
+  def self: ActorRef
+
+  protected def apollo(serviceID: String): ActorSelection
+
+}
+
+abstract class SparkApplication[T <: SparkApplicationContext](val appConfiguration: Config) extends Actor with StackableApplication {
 
   import context.dispatcher
 
   private val log = LoggerFactory.getLogger(getClass.getName)
 
   protected val applicationContext: T = initializeContext
+
+  protected def apollo(serviceID: String) = context.actorSelection(s"akka.tcp://Apollo@127.0.0.1:2552/user/$serviceID")
 
   protected def initializeApplicationContext(config: Config): T
 
@@ -51,11 +68,9 @@ abstract class SparkApplication[T <: SparkApplicationContext](val appConfigurati
 
     implicit val timeout: Timeout = 10 seconds
 
-    val router = context.actorSelection("akka.tcp://Apollo@127.0.0.1:2552/user/router/configuration")
-
     try {
       Await.result(
-        router ? "get-configuration" map {
+        apollo("configuration") ? "get-configuration" map {
           case c: Config => {
             val effectiveConfig = appConfiguration.withFallback(c)
             try {

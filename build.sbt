@@ -12,6 +12,7 @@ val sprayVersion = "1.3.+"
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.0",
+  "com.typesafe.akka" %% "akka-actor" % "2.3.14",
   "org.apache.spark" %% "spark-core" % sparkVersion,
   "org.apache.spark" %% "spark-sql" % sparkVersion,
   "io.spray" %% "spray-http" % sprayVersion,

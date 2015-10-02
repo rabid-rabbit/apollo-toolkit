@@ -1,6 +1,7 @@
 package com.sungevity.analytics.helpers.csv
 
 import org.apache.commons.lang3.StringEscapeUtils
+import org.apache.spark.rdd.RDD
 
 object Csv {
 
@@ -40,6 +41,20 @@ object Csv {
     }
 
     def asCSV = this
+
+  }
+
+  implicit class RDDReportFormat[T <: Reportable](rdd: RDD[T]) {
+
+    def asCSV = {
+
+      rdd.zipWithIndex().flatMap{
+        r =>
+          if(r._2 == 0) Seq(r._1.asCSVHeader, r._1.asCSV)
+          else Seq(r._1.asCSV)
+      }
+
+    }
 
   }
 

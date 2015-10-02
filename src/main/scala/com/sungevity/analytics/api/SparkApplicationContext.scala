@@ -18,7 +18,7 @@ abstract class SparkApplicationContext(@transient val config: Config) extends Se
     if(config.hasPath("spark.default.parallelism"))
       Option("spark.default.parallelism" -> config.getInt("spark.default.parallelism").toString)
     else None,
-    Some("spark.cassandra.connection.host" -> config.getString("cassandra.connection-host")),
+//    Some("spark.cassandra.connection.host" -> config.getString("cassandra.connection-host")),
     Some("spark.cleaner.ttl" -> config.getString("cassandra.spark-cleaner-ttl"))
   ).flatten ++
     jarOf(this.getClass).map{
