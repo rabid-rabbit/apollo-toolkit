@@ -61,7 +61,7 @@ trait HDFSShare {
 
   }
 
-  protected def stream(resource: String): Option[Stream[String]] = {
+  protected def stream(resource: String): Option[Iterator[String]] = {
 
     val path = s"$basicPath/$resource"
 
@@ -69,7 +69,7 @@ trait HDFSShare {
       _ <- new BooleanOps(resource.length > 0).option()
       _ <- new BooleanOps(FileSystem.get(applicationContext.sc.hadoopConfiguration).exists(new Path(path))).option()
     } yield {
-      applicationContext.sc.textFile(path).toLocalIterator.toStream
+      applicationContext.sc.textFile(path).toLocalIterator
     }
 
 

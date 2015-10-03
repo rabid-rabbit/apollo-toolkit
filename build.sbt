@@ -6,18 +6,22 @@ version := "1.0.0-SNAPSHOT"
 
 scalaVersion := "2.11.6"
 
-val sparkVersion = "1.4.1"
+val sparkVersion = "1.5.1"
 
 val sprayVersion = "1.3.+"
 
+val akkaVersion = "2.3.4"
+
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.3.0",
-  "com.typesafe.akka" %% "akka-actor" % "2.3.14",
-  "org.apache.spark" %% "spark-core" % sparkVersion,
-  "org.apache.spark" %% "spark-sql" % sparkVersion,
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+  "org.apache.spark" %% "spark-core" % sparkVersion excludeAll(ExclusionRule(organization = "org.spark-project.akka")),
+  "org.apache.spark" %% "spark-sql" % sparkVersion excludeAll(ExclusionRule(organization = "org.spark-project.akka")),
   "io.spray" %% "spray-http" % sprayVersion,
   "io.spray" %% "spray-can" % sprayVersion,
-  "com.datastax.spark" %% "spark-cassandra-connector" % "1.4.+",
+  "com.datastax.spark" %% "spark-cassandra-connector" % "1.5.+",
   "mysql"         % "mysql-connector-java" % "5.1.24",
   "joda-time" % "joda-time" % "2.8.1",
   "com.github.nscala-time" %% "nscala-time" % "2.0.0",
